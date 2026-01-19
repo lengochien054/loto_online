@@ -1,178 +1,82 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>Lô Tô Online</title>
-<style>
-body{font-family:Arial;background:#0b132b;color:#fff;text-align:center}
-input,button{padding:8px;margin:5px;border-radius:5px;border:none}
-button{background:#1c7ed6;color:white;cursor:pointer}
-table{margin:auto;border-collapse:collapse}
-td{width:40px;height:40px;border:1px solid #555;font-weight:bold;cursor:pointer}
-.marked{background:#f77f00;color:#000}
-#game,#player{display:none}
-#chat{width:300px;height:200px;overflow:auto;background:#111;margin:auto}
-</style>
+  <meta charset="UTF-8" />
+  <title>Loto Online</title>
+
+  <!-- Firebase v8 CDN -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0b1c2d;
+      color: #fff;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h1>LÔ TÔ ONLINE</h1>
+<h2>Loto Online</h2>
 
-<div id="login">
-  <h3>Chủ phòng đăng nhập</h3>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="loginHost()">Đăng nhập</button>
-
-  <h3>Người chơi vào phòng</h3>
-  <input id="playerName" placeholder="Tên">
-  <input id="roomCode" placeholder="Mã phòng">
-  <button onclick="joinRoom()">Vào chơi</button>
+<div id="loginBox">
+  <input id="email" placeholder="Email chủ phòng">
+  <input id="password" type="password" placeholder="Mật khẩu">
+  <button onclick="login()">Đăng nhập</button>
 </div>
 
-<div id="game">
-  <h2>Phòng: <span id="roomText"></span></h2>
-  <h3>Số hiện tại: <span id="currentNumber">--</span></h3>
-  <button id="drawBtn" onclick="drawNumber()">BẤM SỐ</button>
-  <button onclick="resetGame()">RESET VÁN</button>
-
-  <h3>Kết quả: <span id="result"></span></h3>
-
-  <table id="board"></table>
-
-  <h3>Người chơi</h3>
-  <ul id="players"></ul>
-
-  <h3>Chat</h3>
-  <div id="chat"></div>
-  <input id="chatInput" placeholder="Nhập tin nhắn">
-  <button onclick="sendChat()">Gửi</button>
+<div id="app" style="display:none;">
+  <h3>Xin chào chủ phòng</h3>
+  <button onclick="sendNumber()">Bấm số</button>
+  <p>Số hiện tại: <span id="currentNumber">--</span></p>
 </div>
-
-<!-- Firebase v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDsqMoyX9jSWhQ51_a2a5XcDgrFVN-cvfQ",
-  authDomain: "lotoonline.firebaseapp.com",
-  databaseURL: "https://lotoonline-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "lotoonline",
-  storageBucket: "lotoonline.appspot.com",
-  messagingSenderId: "252484108877",
-  appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
-};
-firebase.initializeApp(firebaseConfig);
+  // Firebase config của bạn
+  const firebaseConfig = {
+    apiKey: "AIzaSyDsgMoyX9jSWHQ51_a2a5XcDgrFVN-cvfQ",
+    authDomain: "lotoonline.firebaseapp.com",
+    databaseURL: "https://lotoonline-default-rtdb.firebaseio.com",
+    projectId: "lotoonline",
+    storageBucket: "lotoonline.appspot.com",
+    messagingSenderId: "252484108877",
+    appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
+  };
 
-let room="", player="";
+  // Init Firebase
+  firebase.initializeApp(firebaseConfig);
 
-function loginHost(){
-  firebase.auth().signInWithEmailAndPassword(
-    email.value, password.value
-  ).then(()=>{
-    room = Math.random().toString(36).substring(2,8).toUpperCase();
-    firebase.database().ref("rooms/"+room).set({numbers:[]});
-    startGame(true);
-  }).catch(e=>alert(e.message));
-}
+  const auth = firebase.auth();
+  const db = firebase.database();
 
-function joinRoom(){
-  room = roomCode.value.toUpperCase();
-  player = playerName.value;
-  firebase.database().ref("rooms/"+room).once("value",s=>{
-    if(!s.exists()) return alert("Phòng không tồn tại");
-    firebase.database().ref("rooms/"+room+"/players/"+player).set(true);
-    startGame(false);
+  function login() {
+    const email = email.value;
+    const password = password.value;
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        loginBox.style.display = "none";
+        app.style.display = "block";
+      })
+      .catch(err => alert(err.message));
+  }
+
+  function sendNumber() {
+    const number = Math.floor(Math.random() * 90) + 1;
+    db.ref("currentNumber").set(number);
+  }
+
+  db.ref("currentNumber").on("value", snap => {
+    currentNumber.innerText = snap.val() || "--";
   });
-}
-
-function startGame(isHost){
-  document.getElementById("login").style.display="none";
-  document.getElementById("game").style.display="block";
-  roomText.innerText=room;
-  if(!isHost) drawBtn.style.display="none";
-  createBoard();
-  listenData();
-}
-
-function drawNumber(){
-  firebase.database().ref("rooms/"+room+"/numbers").once("value",s=>{
-    let arr=s.val()||[];
-    let n;
-    do{n=Math.floor(Math.random()*90)+1}while(arr.includes(n));
-    arr.push(n);
-    firebase.database().ref("rooms/"+room+"/numbers").set(arr);
-  });
-}
-
-function listenData(){
-  firebase.database().ref("rooms/"+room+"/numbers").on("value",s=>{
-    let arr=s.val()||[];
-    currentNumber.innerText=arr[arr.length-1]||"--";
-  });
-
-  firebase.database().ref("rooms/"+room+"/players").on("value",s=>{
-    players.innerHTML="";
-    let i=1;
-    for(let p in s.val()) players.innerHTML+=`<li>${i++}. ${p}</li>`;
-  });
-
-  firebase.database().ref("rooms/"+room+"/chat").on("child_added",s=>{
-    chat.innerHTML+=`<div>${s.val()}</div>`;
-    chat.scrollTop=9999;
-  });
-}
-
-function sendChat(){
-  firebase.database().ref("rooms/"+room+"/chat").push(player+": "+chatInput.value);
-  chatInput.value="";
-}
-
-function resetGame(){
-  firebase.database().ref("rooms/"+room+"/numbers").set([]);
-  document.querySelectorAll(".marked").forEach(c=>c.classList.remove("marked"));
-  result.innerText="";
-}
-
-function createBoard(){
-  const ranges=[[1,9],[10,19],[20,29],[30,39],[40,49],[50,59],[60,69],[70,79],[80,90]];
-  let cols=ranges.map(r=>{
-    let a=[];
-    while(a.length<5){
-      let n=Math.floor(Math.random()*(r[1]-r[0]+1))+r[0];
-      if(!a.includes(n)) a.push(n);
-    }
-    return a.sort((a,b)=>a-b);
-  });
-
-  let grid=Array.from({length:9},()=>Array(9).fill(""));
-  cols.forEach((c,i)=>c.forEach((n,j)=>grid[j][i]=n));
-
-  board.innerHTML="";
-  grid.forEach(row=>{
-    let tr=document.createElement("tr");
-    row.forEach(n=>{
-      let td=document.createElement("td");
-      td.innerText=n||"";
-      td.onclick=()=>{td.classList.toggle("marked");checkRow()};
-      tr.appendChild(td);
-    });
-    board.appendChild(tr);
-  });
-}
-
-function checkRow(){
-  let rows=document.querySelectorAll("tr");
-  result.innerText="";
-  rows.forEach(r=>{
-    let m=r.querySelectorAll(".marked").length;
-    if(m==4) result.innerText="CHỜ";
-    if(m>=5) result.innerText="KINH!";
-  });
-}
 </script>
 
 </body>
