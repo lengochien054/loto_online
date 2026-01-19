@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Lô Tô Online</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <style>
 body {
   font-family: Arial;
@@ -10,38 +15,51 @@ body {
   color: #fff;
   text-align: center;
 }
+
+input, button, select {
+  padding: 8px;
+  margin: 5px;
+  font-size: 14px;
+}
+
+button {
+  background: #38bdf8;
+  border: none;
+  cursor: pointer;
+}
+
+#hostPanel, #game, #chatBox { display: none; }
+
 table {
   margin: 10px auto;
   border-collapse: collapse;
 }
+
 td {
-  width: 60px;
-  height: 60px;
+  width: 45px;
+  height: 45px;
   border: 2px solid #38bdf8;
-  cursor: pointer;
-  font-size: 20px;
   background: #1e293b;
+  cursor: pointer;
+  font-weight: bold;
 }
+
 td.marked {
   background: #22c55e;
   color: #000;
 }
-.controls {
-  margin: 10px;
+
+td.empty {
+  background: #020617;
+  cursor: default;
 }
-button {
-  padding: 10px 20px;
-  margin: 5px;
-  background: #38bdf8;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-}
+
 #status {
   font-size: 22px;
   font-weight: bold;
   margin: 10px;
 }
+
 #chat {
   width: 90%;
   max-width: 500px;
@@ -49,16 +67,13 @@ button {
   background: #1e293b;
   padding: 10px;
 }
+
 #messages {
   height: 200px;
   overflow-y: auto;
   border: 1px solid #38bdf8;
-  margin-bottom: 5px;
   padding: 5px;
-}
-input {
-  padding: 8px;
-  width: 70%;
+  margin-bottom: 5px;
 }
 </style>
 </head>
@@ -67,105 +82,246 @@ input {
 
 <h1>LÔ TÔ ONLINE</h1>
 
-<div class="controls">
+<!-- HOST LOGIN -->
+<div id="login">
+  <h3>Chủ phòng đăng nhập</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Mật khẩu">
+  <button onclick="hostLogin()">Đăng nhập</button>
+</div>
+
+<!-- PLAYER JOIN -->
+<div id="playerJoin">
+  <h3>Người chơi vào phòng</h3>
+  <input id="playerName" placeholder="Tên">
+  <input id="roomCode" placeholder="Mã phòng">
+  <button onclick="joinRoom()">Vào chơi</button>
+</div>
+
+<!-- HOST PANEL -->
+<div id="hostPanel">
+  <h3>Chủ phòng</h3>
+  <button onclick="createRoom()">Tạo phòng</button>
+  <button onclick="drawNumber()">BẤM SỐ</button>
+  <button onclick="resetRound()">RESET VÁN</button>
+  <div>Số hiện tại: <span id="currentNumber">--</span></div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <h3>Bảng Lô Tô</h3>
+
   Chọn STT bảng:
   <select id="boardSelect"></select>
-</div>
 
-<table id="board"></table>
+  <table id="board"></table>
 
-<div class="controls">
   <button onclick="resetMarks()">XÓA NHANH</button>
+  <div id="status"></div>
 </div>
 
-<div id="status"></div>
-
-<h2>MC ĐỌC SỐ</h2>
-<iframe src="https://khongbiet.vn/lay-so-ngau-nhien-choi-lo-to/" 
-width="100%" height="400" style="border:none;"></iframe>
-
-<h2>PHÒNG CHAT</h2>
-<div id="chat">
-  <div id="messages"></div>
-  <input id="msgInput" placeholder="Nhập tin nhắn..." />
-  <button onclick="sendMsg()">Gửi</button>
+<!-- CHAT -->
+<div id="chatBox">
+  <h3>Phòng Chat</h3>
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="msgInput" placeholder="Nhập tin nhắn...">
+    <button onclick="sendMsg()">Gửi</button>
+  </div>
 </div>
 
 <script>
-const usedBoards = new Set();
-const boardSelect = document.getElementById("boardSelect");
-const board = document.getElementById("board");
-const statusText = document.getElementById("status");
+/* ===== FIREBASE CONFIG (DÁN CỦA BẠN VÀO) ===== */
+const firebaseConfig = {// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-for (let i = 1; i <= 50; i++) {
-  const opt = document.createElement("option");
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDsqMoyX9jSWhQ5l_a2a5XcDgrFVN-cvfQ",
+  authDomain: "lotoonline.firebaseapp.com",
+  projectId: "lotoonline",
+  storageBucket: "lotoonline.firebasestorage.app",
+  messagingSenderId: "252484108877",
+  appId: "1:252484108877:web:a971f2ef0cbe8a38271204",
+  measurementId: "G-8YBCGY9PFV"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+/* ===== GLOBAL ===== */
+let room = "";
+let player = "";
+let isHost = false;
+const usedBoards = new Set();
+
+/* ===== STT BẢNG ===== */
+for (let i = 1; i <= 20; i++) {
+  let opt = document.createElement("option");
   opt.value = i;
   opt.text = "Bảng " + i;
   boardSelect.appendChild(opt);
 }
 
-boardSelect.onchange = () => {
-  if (usedBoards.has(boardSelect.value)) {
-    alert("Bảng đã có người chọn!");
-    boardSelect.value = "";
-  } else {
-    usedBoards.add(boardSelect.value);
-    generateBoard();
-  }
-};
+/* ===== HOST LOGIN ===== */
+function hostLogin() {
+  auth.signInWithEmailAndPassword(email.value, password.value)
+    .then(() => {
+      isHost = true;
+      hostPanel.style.display = "block";
+      alert("Đăng nhập chủ phòng thành công");
+    })
+    .catch(e => alert(e.message));
+}
 
+/* ===== CREATE ROOM ===== */
+function createRoom() {
+  room = "LOTO" + Math.floor(Math.random() * 1000);
+  db.ref("rooms/" + room).set({
+    numbers: [],
+    current: "--",
+    players: {},
+    chat: {}
+  });
+  alert("Mã phòng: " + room);
+}
+
+/* ===== JOIN ROOM ===== */
+function joinRoom() {
+  player = playerName.value;
+  room = roomCode.value;
+
+  if (!player || !room) return alert("Nhập đầy đủ thông tin");
+
+  db.ref("rooms/" + room).once("value", snap => {
+    if (!snap.exists()) return alert("Phòng không tồn tại");
+
+    game.style.display = "block";
+    chatBox.style.display = "block";
+
+    generateBoard();
+    listenNumber();
+    listenChat();
+
+    db.ref(`rooms/${room}/players/${player}`).set(true);
+  });
+}
+
+/* ===== DRAW NUMBER ===== */
+function drawNumber() {
+  if (!isHost) return;
+
+  const ref = db.ref("rooms/" + room);
+  ref.once("value", snap => {
+    let data = snap.val();
+    let used = data.numbers || [];
+    let n;
+
+    do {
+      n = Math.floor(Math.random() * 90) + 1;
+    } while (used.includes(n));
+
+    used.push(n);
+    ref.update({ numbers: used, current: n });
+  });
+}
+
+/* ===== RESET ROUND ===== */
+function resetRound() {
+  if (!isHost) return;
+  db.ref("rooms/" + room).update({
+    numbers: [],
+    current: "--"
+  });
+  resetMarks();
+  alert("Đã reset ván");
+}
+
+/* ===== LISTEN NUMBER ===== */
+function listenNumber() {
+  db.ref("rooms/" + room + "/current").on("value", snap => {
+    currentNumber.innerText = snap.val();
+  });
+}
+
+/* ===== BOARD 9x9 ===== */
 function generateBoard() {
   board.innerHTML = "";
-  let numbers = [];
 
-  for (let col = 0; col < 9; col++) {
-    let start = col * 10 + 1;
-    let end = col === 8 ? 90 : start + 9;
-    let colNums = [];
-    while (colNums.length < 5) {
-      let n = Math.floor(Math.random() * (end - start + 1)) + start;
-      if (!colNums.includes(n)) colNums.push(n);
-    }
-    numbers.push(colNums);
-  }
-
-  for (let r = 0; r < 5; r++) {
+  for (let r = 0; r < 9; r++) {
     let tr = document.createElement("tr");
+    let filled = 0;
+
     for (let c = 0; c < 9; c++) {
       let td = document.createElement("td");
-      td.innerText = numbers[c][r];
-      td.onclick = () => {
-        td.classList.toggle("marked");
-        checkStatus();
-      };
+
+      if (filled < 5 && Math.random() > 0.4) {
+        let start = c * 10 + 1;
+        let end = (c === 8) ? 90 : start + 9;
+        td.innerText = Math.floor(Math.random() * (end - start + 1)) + start;
+
+        td.onclick = () => {
+          td.classList.toggle("marked");
+          checkStatus();
+        };
+        filled++;
+      } else {
+        td.classList.add("empty");
+      }
+
       tr.appendChild(td);
     }
+
     board.appendChild(tr);
   }
 }
 
+/* ===== STATUS ===== */
+function checkStatus() {
+  let rows = document.querySelectorAll("tr");
+  rows.forEach(r => {
+    let m = r.querySelectorAll(".marked").length;
+    if (m === 4) status.innerText = "CHỜ";
+    if (m === 5) status.innerText = "KINH";
+  });
+}
+
 function resetMarks() {
   document.querySelectorAll("td").forEach(td => td.classList.remove("marked"));
-  statusText.innerText = "";
+  status.innerText = "";
 }
 
-function checkStatus() {
-  let rows = board.rows;
-  for (let r = 0; r < rows.length; r++) {
-    let marked = rows[r].querySelectorAll(".marked").length;
-    if (marked === 4) statusText.innerText = "CHỜ";
-    if (marked === 5) statusText.innerText = "KINH";
-  }
-}
-
-// CHAT (local)
+/* ===== CHAT ===== */
 function sendMsg() {
-  let msg = document.getElementById("msgInput").value;
+  let msg = msgInput.value;
   if (!msg) return;
-  let div = document.createElement("div");
-  div.innerText = msg;
-  document.getElementById("messages").appendChild(div);
-  document.getElementById("msgInput").value = "";
+
+  db.ref("rooms/" + room + "/chat").push({
+    name: player || "Chủ phòng",
+    text: msg
+  });
+
+  msgInput.value = "";
+}
+
+function listenChat() {
+  db.ref("rooms/" + room + "/chat").on("child_added", snap => {
+    let m = snap.val();
+    let div = document.createElement("div");
+    div.innerText = m.name + ": " + m.text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  });
 }
 </script>
 
