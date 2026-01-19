@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Lô Tô Online 9x9</title>
+<style>
+body { font-family: Arial; text-align: center; }
+table { border-collapse: collapse; margin: auto; }
+td {
+  width: 50px; height: 50px;
+  border: 1px solid #000;
+  cursor: pointer;
+  font-weight: bold;
+}
+.marked { background: yellow; }
+#status { margin-top: 20px; font-size: 20px; color: red; }
+</style>
+</head>
+
+<body>
+
+<h2>Chọn STT Bảng Số</h2>
+<select id="boardSelect"></select>
+
+<h2>Bảng Lô Tô 9x9</h2>
+<table id="board"></table>
+
+<div id="status"></div>
+
+<script>
+const boards = {};
+let usedBoards = [];
+
+function generateBoard() {
+  let numbers = [];
+  while(numbers.length < 45) {
+    let n = Math.floor(Math.random()*90)+1;
+    if(!numbers.includes(n)) numbers.push(n);
+  }
+
+  let board = [];
+  let index = 0;
+
+  for(let i=0;i<9;i++){
+    let row = [];
+    let cols = [];
+    while(cols.length < 5){
+      let c = Math.floor(Math.random()*9);
+      if(!cols.includes(c)) cols.push(c);
+    }
+
+    for(let j=0;j<9;j++){
+      if(cols.includes(j)){
+        row.push(numbers[index++]);
+      } else {
+        row.push("");
+      }
+    }
+    board.push(row);
+  }
+  return board;
+}
+
+for(let i=1;i<=20;i++){
+  boards[i] = generateBoard();
+}
+
+const select = document.getElementById("boardSelect");
+for(let i=1;i<=20;i++){
+  let opt = document.createElement("option");
+  opt.value = i;
+  opt.text = "Bảng số " + i;
+  select.appendChild(opt);
+}
+
+select.onchange = () => loadBoard(select.value);
+
+function loadBoard(id){
+  const board = boards[id];
+  const table = document.getElementById("board");
+  table.innerHTML = "";
+
+  for(let i=0;i<9;i++){
+    let tr = document.createElement("tr");
+    for(let j=0;j<9;j++){
+      let td = document.createElement("td");
+      td.innerText = board[i][j];
+      td.onclick = () => td.classList.toggle("marked");
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+}
+
+loadBoard(1);
+</script>
+
+</body>
+</html>
