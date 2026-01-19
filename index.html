@@ -3,78 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>Lô Tô Online</title>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: #fff;
-  text-align: center;
-}
-
-input, button, select {
-  padding: 8px;
-  margin: 5px;
-  font-size: 14px;
-}
-
-button {
-  background: #38bdf8;
-  border: none;
-  cursor: pointer;
-}
-
-#hostPanel, #game, #chatBox { display: none; }
-
-table {
-  margin: 10px auto;
-  border-collapse: collapse;
-}
-
-td {
-  width: 45px;
-  height: 45px;
-  border: 2px solid #38bdf8;
-  background: #1e293b;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-td.marked {
-  background: #22c55e;
-  color: #000;
-}
-
-td.empty {
-  background: #020617;
-  cursor: default;
-}
-
-#status {
-  font-size: 22px;
-  font-weight: bold;
-  margin: 10px;
-}
-
-#chat {
-  width: 90%;
-  max-width: 500px;
-  margin: auto;
-  background: #1e293b;
-  padding: 10px;
-}
-
-#messages {
-  height: 200px;
-  overflow-y: auto;
-  border: 1px solid #38bdf8;
-  padding: 5px;
-  margin-bottom: 5px;
-}
+body{font-family:Arial;background:#0b132b;color:#fff;text-align:center}
+input,button{padding:8px;margin:5px;border-radius:5px;border:none}
+button{background:#1c7ed6;color:white;cursor:pointer}
+table{margin:auto;border-collapse:collapse}
+td{width:40px;height:40px;border:1px solid #555;font-weight:bold;cursor:pointer}
+.marked{background:#f77f00;color:#000}
+#game,#player{display:none}
+#chat{width:300px;height:200px;overflow:auto;background:#111;margin:auto}
 </style>
 </head>
 
@@ -82,245 +19,158 @@ td.empty {
 
 <h1>LÔ TÔ ONLINE</h1>
 
-<!-- HOST LOGIN -->
 <div id="login">
   <h3>Chủ phòng đăng nhập</h3>
   <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Mật khẩu">
-  <button onclick="hostLogin()">Đăng nhập</button>
-</div>
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="loginHost()">Đăng nhập</button>
 
-<!-- PLAYER JOIN -->
-<div id="playerJoin">
   <h3>Người chơi vào phòng</h3>
   <input id="playerName" placeholder="Tên">
   <input id="roomCode" placeholder="Mã phòng">
   <button onclick="joinRoom()">Vào chơi</button>
 </div>
 
-<!-- HOST PANEL -->
-<div id="hostPanel">
-  <h3>Chủ phòng</h3>
-  <button onclick="createRoom()">Tạo phòng</button>
-  <button onclick="drawNumber()">BẤM SỐ</button>
-  <button onclick="resetRound()">RESET VÁN</button>
-  <div>Số hiện tại: <span id="currentNumber">--</span></div>
-</div>
-
-<!-- GAME -->
 <div id="game">
-  <h3>Bảng Lô Tô</h3>
+  <h2>Phòng: <span id="roomText"></span></h2>
+  <h3>Số hiện tại: <span id="currentNumber">--</span></h3>
+  <button id="drawBtn" onclick="drawNumber()">BẤM SỐ</button>
+  <button onclick="resetGame()">RESET VÁN</button>
 
-  Chọn STT bảng:
-  <select id="boardSelect"></select>
+  <h3>Kết quả: <span id="result"></span></h3>
 
   <table id="board"></table>
 
-  <button onclick="resetMarks()">XÓA NHANH</button>
-  <div id="status"></div>
+  <h3>Người chơi</h3>
+  <ul id="players"></ul>
+
+  <h3>Chat</h3>
+  <div id="chat"></div>
+  <input id="chatInput" placeholder="Nhập tin nhắn">
+  <button onclick="sendChat()">Gửi</button>
 </div>
 
-<!-- CHAT -->
-<div id="chatBox">
-  <h3>Phòng Chat</h3>
-  <div id="chat">
-    <div id="messages"></div>
-    <input id="msgInput" placeholder="Nhập tin nhắn...">
-    <button onclick="sendMsg()">Gửi</button>
-  </div>
-</div>
+<!-- Firebase v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-/* ===== FIREBASE CONFIG (DÁN CỦA BẠN VÀO) ===== */
-const firebaseConfig = {// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDsqMoyX9jSWhQ5l_a2a5XcDgrFVN-cvfQ",
+  apiKey: "AIzaSyDsqMoyX9jSWhQ51_a2a5XcDgrFVN-cvfQ",
   authDomain: "lotoonline.firebaseapp.com",
+  databaseURL: "https://lotoonline-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "lotoonline",
-  storageBucket: "lotoonline.firebasestorage.app",
+  storageBucket: "lotoonline.appspot.com",
   messagingSenderId: "252484108877",
-  appId: "1:252484108877:web:a971f2ef0cbe8a38271204",
-  measurementId: "G-8YBCGY9PFV"
+  appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-};
-
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.database();
 
-/* ===== GLOBAL ===== */
-let room = "";
-let player = "";
-let isHost = false;
-const usedBoards = new Set();
+let room="", player="";
 
-/* ===== STT BẢNG ===== */
-for (let i = 1; i <= 20; i++) {
-  let opt = document.createElement("option");
-  opt.value = i;
-  opt.text = "Bảng " + i;
-  boardSelect.appendChild(opt);
+function loginHost(){
+  firebase.auth().signInWithEmailAndPassword(
+    email.value, password.value
+  ).then(()=>{
+    room = Math.random().toString(36).substring(2,8).toUpperCase();
+    firebase.database().ref("rooms/"+room).set({numbers:[]});
+    startGame(true);
+  }).catch(e=>alert(e.message));
 }
 
-/* ===== HOST LOGIN ===== */
-function hostLogin() {
-  auth.signInWithEmailAndPassword(email.value, password.value)
-    .then(() => {
-      isHost = true;
-      hostPanel.style.display = "block";
-      alert("Đăng nhập chủ phòng thành công");
-    })
-    .catch(e => alert(e.message));
-}
-
-/* ===== CREATE ROOM ===== */
-function createRoom() {
-  room = "LOTO" + Math.floor(Math.random() * 1000);
-  db.ref("rooms/" + room).set({
-    numbers: [],
-    current: "--",
-    players: {},
-    chat: {}
-  });
-  alert("Mã phòng: " + room);
-}
-
-/* ===== JOIN ROOM ===== */
-function joinRoom() {
+function joinRoom(){
+  room = roomCode.value.toUpperCase();
   player = playerName.value;
-  room = roomCode.value;
-
-  if (!player || !room) return alert("Nhập đầy đủ thông tin");
-
-  db.ref("rooms/" + room).once("value", snap => {
-    if (!snap.exists()) return alert("Phòng không tồn tại");
-
-    game.style.display = "block";
-    chatBox.style.display = "block";
-
-    generateBoard();
-    listenNumber();
-    listenChat();
-
-    db.ref(`rooms/${room}/players/${player}`).set(true);
+  firebase.database().ref("rooms/"+room).once("value",s=>{
+    if(!s.exists()) return alert("Phòng không tồn tại");
+    firebase.database().ref("rooms/"+room+"/players/"+player).set(true);
+    startGame(false);
   });
 }
 
-/* ===== DRAW NUMBER ===== */
-function drawNumber() {
-  if (!isHost) return;
+function startGame(isHost){
+  document.getElementById("login").style.display="none";
+  document.getElementById("game").style.display="block";
+  roomText.innerText=room;
+  if(!isHost) drawBtn.style.display="none";
+  createBoard();
+  listenData();
+}
 
-  const ref = db.ref("rooms/" + room);
-  ref.once("value", snap => {
-    let data = snap.val();
-    let used = data.numbers || [];
+function drawNumber(){
+  firebase.database().ref("rooms/"+room+"/numbers").once("value",s=>{
+    let arr=s.val()||[];
     let n;
-
-    do {
-      n = Math.floor(Math.random() * 90) + 1;
-    } while (used.includes(n));
-
-    used.push(n);
-    ref.update({ numbers: used, current: n });
+    do{n=Math.floor(Math.random()*90)+1}while(arr.includes(n));
+    arr.push(n);
+    firebase.database().ref("rooms/"+room+"/numbers").set(arr);
   });
 }
 
-/* ===== RESET ROUND ===== */
-function resetRound() {
-  if (!isHost) return;
-  db.ref("rooms/" + room).update({
-    numbers: [],
-    current: "--"
+function listenData(){
+  firebase.database().ref("rooms/"+room+"/numbers").on("value",s=>{
+    let arr=s.val()||[];
+    currentNumber.innerText=arr[arr.length-1]||"--";
   });
-  resetMarks();
-  alert("Đã reset ván");
+
+  firebase.database().ref("rooms/"+room+"/players").on("value",s=>{
+    players.innerHTML="";
+    let i=1;
+    for(let p in s.val()) players.innerHTML+=`<li>${i++}. ${p}</li>`;
+  });
+
+  firebase.database().ref("rooms/"+room+"/chat").on("child_added",s=>{
+    chat.innerHTML+=`<div>${s.val()}</div>`;
+    chat.scrollTop=9999;
+  });
 }
 
-/* ===== LISTEN NUMBER ===== */
-function listenNumber() {
-  db.ref("rooms/" + room + "/current").on("value", snap => {
-    currentNumber.innerText = snap.val();
-  });
+function sendChat(){
+  firebase.database().ref("rooms/"+room+"/chat").push(player+": "+chatInput.value);
+  chatInput.value="";
 }
 
-/* ===== BOARD 9x9 ===== */
-function generateBoard() {
-  board.innerHTML = "";
+function resetGame(){
+  firebase.database().ref("rooms/"+room+"/numbers").set([]);
+  document.querySelectorAll(".marked").forEach(c=>c.classList.remove("marked"));
+  result.innerText="";
+}
 
-  for (let r = 0; r < 9; r++) {
-    let tr = document.createElement("tr");
-    let filled = 0;
-
-    for (let c = 0; c < 9; c++) {
-      let td = document.createElement("td");
-
-      if (filled < 5 && Math.random() > 0.4) {
-        let start = c * 10 + 1;
-        let end = (c === 8) ? 90 : start + 9;
-        td.innerText = Math.floor(Math.random() * (end - start + 1)) + start;
-
-        td.onclick = () => {
-          td.classList.toggle("marked");
-          checkStatus();
-        };
-        filled++;
-      } else {
-        td.classList.add("empty");
-      }
-
-      tr.appendChild(td);
+function createBoard(){
+  const ranges=[[1,9],[10,19],[20,29],[30,39],[40,49],[50,59],[60,69],[70,79],[80,90]];
+  let cols=ranges.map(r=>{
+    let a=[];
+    while(a.length<5){
+      let n=Math.floor(Math.random()*(r[1]-r[0]+1))+r[0];
+      if(!a.includes(n)) a.push(n);
     }
+    return a.sort((a,b)=>a-b);
+  });
 
+  let grid=Array.from({length:9},()=>Array(9).fill(""));
+  cols.forEach((c,i)=>c.forEach((n,j)=>grid[j][i]=n));
+
+  board.innerHTML="";
+  grid.forEach(row=>{
+    let tr=document.createElement("tr");
+    row.forEach(n=>{
+      let td=document.createElement("td");
+      td.innerText=n||"";
+      td.onclick=()=>{td.classList.toggle("marked");checkRow()};
+      tr.appendChild(td);
+    });
     board.appendChild(tr);
-  }
-}
-
-/* ===== STATUS ===== */
-function checkStatus() {
-  let rows = document.querySelectorAll("tr");
-  rows.forEach(r => {
-    let m = r.querySelectorAll(".marked").length;
-    if (m === 4) status.innerText = "CHỜ";
-    if (m === 5) status.innerText = "KINH";
   });
 }
 
-function resetMarks() {
-  document.querySelectorAll("td").forEach(td => td.classList.remove("marked"));
-  status.innerText = "";
-}
-
-/* ===== CHAT ===== */
-function sendMsg() {
-  let msg = msgInput.value;
-  if (!msg) return;
-
-  db.ref("rooms/" + room + "/chat").push({
-    name: player || "Chủ phòng",
-    text: msg
-  });
-
-  msgInput.value = "";
-}
-
-function listenChat() {
-  db.ref("rooms/" + room + "/chat").on("child_added", snap => {
-    let m = snap.val();
-    let div = document.createElement("div");
-    div.innerText = m.name + ": " + m.text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+function checkRow(){
+  let rows=document.querySelectorAll("tr");
+  result.innerText="";
+  rows.forEach(r=>{
+    let m=r.querySelectorAll(".marked").length;
+    if(m==4) result.innerText="CHỜ";
+    if(m>=5) result.innerText="KINH!";
   });
 }
 </script>
