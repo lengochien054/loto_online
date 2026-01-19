@@ -3,81 +3,269 @@
 <head>
   <meta charset="UTF-8" />
   <title>Loto Online</title>
-
-  <!-- Firebase v8 CDN -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
   <style>
     body {
-      font-family: Arial;
-      background: #0b1c2d;
+      font-family: Arial, sans-serif;
+      background: #0b1e2d;
       color: #fff;
+      margin: 0;
+      padding: 0;
       text-align: center;
     }
+
+    h1 { margin: 20px 0; }
+
     input, button {
       padding: 10px;
       margin: 5px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
     }
+
+    button {
+      background: #1e90ff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover { background: #0d6efd; }
+
+    .box {
+      background: #122c44;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 900px;
+      margin: 20px auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 6px;
+      margin-top: 15px;
+    }
+
+    .cell {
+      background: #1f3b57;
+      padding: 12px 0;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
+    .marked { background: #28a745; }
+    .last { background: #ffc107; color: #000; }
+
+    #chatBox {
+      height: 200px;
+      overflow-y: auto;
+      background: #081522;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: left;
+    }
+
+    #chatBox div { margin: 5px 0; }
   </style>
 </head>
 
 <body>
+  <h1>Loto Online</h1>
 
-<h2>Loto Online</h2>
+  <!-- HOST LOGIN -->
+  <div id="hostLogin" class="box">
+    <h3>Đăng nhập Host</h3>
+    <input id="hostEmail" placeholder="Email">
+    <input id="hostPassword" type="password" placeholder="Password">
+    <br>
+    <button onclick="loginHost()">Đăng nhập</button>
+  </div>
 
-<div id="loginBox">
-  <input id="email" placeholder="Email chủ phòng">
-  <input id="password" type="password" placeholder="Mật khẩu">
-  <button onclick="login()">Đăng nhập</button>
-</div>
+  <!-- PLAYER JOIN -->
+  <div id="playerJoin" class="box">
+    <h3>Người chơi</h3>
+    <input id="playerName" placeholder="Tên của bạn">
+    <input id="roomCodeInput" placeholder="Mã phòng">
+    <br>
+    <button onclick="joinRoom()">Vào phòng</button>
+  </div>
 
-<div id="app" style="display:none;">
-  <h3>Xin chào chủ phòng</h3>
-  <button onclick="sendNumber()">Bấm số</button>
-  <p>Số hiện tại: <span id="currentNumber">--</span></p>
-</div>
+  <!-- GAME -->
+  <div id="gameArea" class="box" style="display:none">
+    <h2>Phòng: <span id="roomCode"></span></h2>
 
-<script>
-  // Firebase config của bạn
-  const firebaseConfig = {
-    apiKey: "AIzaSyDsgMoyX9jSWHQ51_a2a5XcDgrFVN-cvfQ",
-    authDomain: "lotoonline.firebaseapp.com",
-    databaseURL: "https://lotoonline-default-rtdb.firebaseio.com",
-    projectId: "lotoonline",
-    storageBucket: "lotoonline.appspot.com",
-    messagingSenderId: "252484108877",
-    appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
-  };
+    <div>
+      <button id="drawBtn" onclick="drawNumber()" style="display:none">BỐC SỐ</button>
+      <button onclick="resetGame()">RESET VÁN</button>
+    </div>
 
-  // Init Firebase
-  firebase.initializeApp(firebaseConfig);
+    <h3>Số vừa ra: <span id="lastNumber">--</span></h3>
+    <h4>STT: <span id="drawCount">0</span></h4>
 
-  const auth = firebase.auth();
-  const db = firebase.database();
+    <div id="grid" class="grid"></div>
 
-  function login() {
-    const email = email.value;
-    const password = password.value;
+    <h3>Chat</h3>
+    <div id="chatBox"></div>
+    <input id="chatInput" placeholder="Nhập tin nhắn">
+    <button onclick="sendChat()">Gửi</button>
+  </div>
 
-    auth.signInWithEmailAndPassword(email, password)
-      .then(() => {
-        loginBox.style.display = "none";
-        app.style.display = "block";
-      })
-      .catch(err => alert(err.message));
-  }
+  <!-- FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  function sendNumber() {
-    const number = Math.floor(Math.random() * 90) + 1;
-    db.ref("currentNumber").set(number);
-  }
+    const firebaseConfig = {
+      apiKey: "AIzaSyDsqMoyX9jSWhQ51_a2a5XcDgrFVN-cvfQ",
+      authDomain: "lotoonline.firebaseapp.com",
+      projectId: "lotoonline",
+      storageBucket: "lotoonline.appspot.com",
+      messagingSenderId: "252484108877",
+      appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
+    };
 
-  db.ref("currentNumber").on("value", snap => {
-    currentNumber.innerText = snap.val() || "--";
-  });
-</script>
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
 
+    let currentRoom = "";
+    let playerName = "";
+    let isHost = false;
+
+    // HOST LOGIN
+    window.loginHost = function () {
+      const email = hostEmail.value;
+      const pass = hostPassword.value;
+
+      signInWithEmailAndPassword(auth, email, pass)
+        .then(() => {
+          isHost = true;
+          currentRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
+          roomCode.textContent = currentRoom;
+
+          set(ref(db, "rooms/" + currentRoom), {
+            numbers: [],
+            last: null,
+            count: 0
+          });
+
+          showGame();
+          drawBtn.style.display = "inline-block";
+          listenRoom();
+          listenChat();
+        })
+        .catch(err => alert(err.message));
+    };
+
+    // PLAYER JOIN
+    window.joinRoom = function () {
+      playerName = playerNameInput.value;
+      currentRoom = roomCodeInput.value.toUpperCase();
+
+      if (!playerName || !currentRoom) return alert("Nhập đủ thông tin");
+
+      roomCode.textContent = currentRoom;
+      showGame();
+      listenRoom();
+      listenChat();
+    };
+
+    function showGame() {
+      hostLogin.style.display = "none";
+      playerJoin.style.display = "none";
+      gameArea.style.display = "block";
+      renderGrid();
+    }
+
+    // DRAW NUMBER
+    window.drawNumber = function () {
+      const roomRef = ref(db, "rooms/" + currentRoom);
+
+      onValue(roomRef, snap => {
+        const data = snap.val();
+        let nums = data.numbers || [];
+
+        let n;
+        do {
+          n = Math.floor(Math.random() * 90) + 1;
+        } while (nums.includes(n));
+
+        nums.push(n);
+
+        update(roomRef, {
+          numbers: nums,
+          last: n,
+          count: nums.length
+        });
+      }, { onlyOnce: true });
+    };
+
+    // RESET
+    window.resetGame = function () {
+      if (!isHost) return;
+
+      set(ref(db, "rooms/" + currentRoom), {
+        numbers: [],
+        last: null,
+        count: 0
+      });
+    };
+
+    // LISTEN ROOM
+    function listenRoom() {
+      onValue(ref(db, "rooms/" + currentRoom), snap => {
+        const data = snap.val();
+        if (!data) return;
+
+        lastNumber.textContent = data.last ?? "--";
+        drawCount.textContent = data.count ?? 0;
+
+        renderGrid(data.numbers || [], data.last);
+      });
+    }
+
+    // GRID
+    function renderGrid(marked = [], last = null) {
+      grid.innerHTML = "";
+      for (let i = 1; i <= 90; i++) {
+        const d = document.createElement("div");
+        d.className = "cell";
+        d.textContent = i;
+
+        if (marked.includes(i)) d.classList.add("marked");
+        if (i === last) d.classList.add("last");
+
+        grid.appendChild(d);
+      }
+    }
+
+    // CHAT
+    window.sendChat = function () {
+      const msg = chatInput.value;
+      if (!msg) return;
+
+      push(ref(db, "chat/" + currentRoom), {
+        name: playerName || "Host",
+        text: msg
+      });
+
+      chatInput.value = "";
+    };
+
+    function listenChat() {
+      onValue(ref(db, "chat/" + currentRoom), snap => {
+        chatBox.innerHTML = "";
+        snap.forEach(c => {
+          const m = c.val();
+          const d = document.createElement("div");
+          d.textContent = `${m.name}: ${m.text}`;
+          chatBox.appendChild(d);
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+  </script>
 </body>
 </html>
