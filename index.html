@@ -111,28 +111,32 @@
     <button onclick="sendChat()">Gửi</button>
   </div>
 
-  <!-- FIREBASE -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+ <!-- FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getDatabase, ref, set, push, onValue, update } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDsqMoyX9jSWhQ51_a2a5XcDgrFVN-cvfQ",
-      authDomain: "lotoonline.firebaseapp.com",
-      projectId: "lotoonline",
-      storageBucket: "lotoonline.appspot.com",
-      messagingSenderId: "252484108877",
-      appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyDsqMoyX9jSwQ5L_a2a5xCdgrFVN-cvfQ",
+    authDomain: "lotoonline.firebaseapp.com",
+    projectId: "lotoonline",
+    storageBucket: "lotoonline.firebasestorage.app",
+    messagingSenderId: "252484108877",
+    appId: "1:252484108877:web:a971f2ef0cbe8a38271204",
+    measurementId: "G-8YBCGY9PFV"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
 
-    let currentRoom = "";
-    let playerName = "";
-    let isHost = false;
+  let currentRoom = "";
+  let playerName = "";
+  let isHost = false;
+</script>
+
 
     // HOST LOGIN
     window.loginHost = function () {
@@ -269,3 +273,4 @@
   </script>
 </body>
 </html>
+
