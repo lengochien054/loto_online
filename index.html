@@ -1,138 +1,224 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Loto Online</title>
-  <style>
-    body { background:#0b1c2d; color:white; font-family:Arial; text-align:center; }
-    .box { background:#132b45; margin:20px auto; padding:20px; width:400px; border-radius:10px; }
-    input, button { padding:10px; margin:5px; width:90%; }
-    #gameArea { display:none; }
-  </style>
+<meta charset="UTF-8">
+<title>Lô Tô Online Full</title>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDsqMoyX9jSwQ5L_a2a5xCdgrFVN-cvfQ",
+  authDomain: "lotoonline.firebaseapp.com",
+  databaseURL: "https://lotoonline-default-rtdb.firebaseio.com",
+  projectId: "lotoonline",
+  storageBucket: "lotoonline.appspot.com",
+  messagingSenderId: "252484108877",
+  appId: "1:252484108877:web:a971f2ef0cbe8a38271204"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+let roomCode = "";
+let playerName = "";
+let isHost = false;
+let calledNumbers = [];
+
+/* ================= HOST ================= */
+
+window.loginHost = function () {
+  signInWithEmailAndPassword(auth, hostEmail.value, hostPass.value)
+  .then(() => {
+    isHost = true;
+    roomCode = Math.random().toString(36).substring(2,8).toUpperCase();
+
+    set(ref(db, "rooms/" + roomCode), {
+      numbers: [],
+      players: {}
+    });
+
+    hostLogin.style.display = "none";
+    hostPanel.style.display = "block";
+    roomCodeText.innerText = roomCode;
+    listenRoom();
+  })
+  .catch(e => alert(e.message));
+}
+
+window.callNumber = function () {
+  let n;
+  do {
+    n = Math.floor(Math.random()*90)+1;
+  } while(calledNumbers.includes(n));
+
+  calledNumbers.push(n);
+  set(ref(db,"rooms/"+roomCode+"/numbers"),calledNumbers);
+}
+
+window.resetGame = function () {
+  remove(ref(db,"rooms/"+roomCode));
+  location.reload();
+}
+
+/* ================= PLAYER ================= */
+
+window.joinRoom = function () {
+  playerName = playerNameInput.value;
+  roomCode = roomCodeInput.value.toUpperCase();
+
+  if(!playerName || !roomCode) return alert("Nhập đủ thông tin");
+
+  const board = generateBoard();
+
+  set(ref(db,"rooms/"+roomCode+"/players/"+playerName),{
+    board: board,
+    marked:[]
+  });
+
+  playerLogin.style.display="none";
+  gameArea.style.display="block";
+
+  renderBoard(board);
+  listenRoom();
+}
+
+/* ================= LISTEN ================= */
+
+function listenRoom(){
+  onValue(ref(db,"rooms/"+roomCode),snap=>{
+    const data=snap.val();
+    if(!data) return;
+
+    calledNumbers = data.numbers || [];
+    const last = calledNumbers[calledNumbers.length-1];
+    if(last) lastNumber.innerText="Số vừa hô: "+last;
+
+    updatePlayers(data.players||{});
+    autoMark(last);
+  });
+}
+
+/* ================= BOARD ================= */
+
+function generateBoard(){
+  let board=[], used=new Set();
+
+  function rand(col){
+    let min=col*10+1, max=col==8?90:col*10+9;
+    return Math.floor(Math.random()*(max-min+1))+min;
+  }
+
+  for(let i=0;i<9;i++){
+    let row=Array(9).fill("");
+    let cols=[];
+    while(cols.length<5){
+      let c=Math.floor(Math.random()*9);
+      if(!cols.includes(c)) cols.push(c);
+    }
+
+    cols.forEach(c=>{
+      let n;
+      do{ n=rand(c); }while(used.has(n));
+      used.add(n);
+      row[c]=n;
+    });
+    board.push(row);
+  }
+  return board;
+}
+
+function renderBoard(board){
+  boardEl.innerHTML="";
+  board.forEach(r=>{
+    let tr=document.createElement("tr");
+    r.forEach(c=>{
+      let td=document.createElement("td");
+      td.innerText=c;
+      tr.appendChild(td);
+    });
+    boardEl.appendChild(tr);
+  });
+}
+
+function autoMark(num){
+  if(!num) return;
+  document.querySelectorAll("#board td").forEach(td=>{
+    if(td.innerText==num) td.classList.add("marked");
+  });
+  checkWin();
+}
+
+/* ================= WIN CHECK ================= */
+
+function checkWin(){
+  let rows=document.querySelectorAll("#board tr");
+  rows.forEach(r=>{
+    let count=0;
+    r.querySelectorAll("td").forEach(td=>{
+      if(td.innerText && td.classList.contains("marked")) count++;
+    });
+    if(count==4) status.innerText="CHỜ";
+    if(count==5) status.innerText="KINH";
+  });
+}
+
+/* ================= PLAYERS ================= */
+
+function updatePlayers(players){
+  playerList.innerHTML="";
+  Object.keys(players).forEach(p=>{
+    let div=document.createElement("div");
+    div.innerText=p;
+    playerList.appendChild(div);
+  });
+}
+</script>
+
+<style>
+body{font-family:Arial;background:#0b2c45;color:#fff;text-align:center}
+.box{background:#123;padding:20px;margin:15px;border-radius:10px}
+table{border-collapse:collapse;margin:auto}
+td{width:45px;height:45px;border:1px solid #fff;font-weight:bold}
+.marked{background:yellow;color:#000}
+</style>
 </head>
+
 <body>
 
-<h1>Loto Online</h1>
+<h1>Lô Tô Online</h1>
 
-<div class="box" id="hostLogin">
-  <h2>Đăng nhập Host</h2>
+<div id="hostLogin" class="box">
+  <h3>Host đăng nhập</h3>
   <input id="hostEmail" placeholder="Email">
-  <input id="hostPassword" type="password" placeholder="Mật khẩu">
+  <input id="hostPass" type="password" placeholder="Password">
   <button onclick="loginHost()">Đăng nhập</button>
 </div>
 
-<div class="box" id="playerJoin">
-  <h2>Người chơi</h2>
-  <input id="playerName" placeholder="Tên của bạn">
+<div id="hostPanel" class="box" style="display:none">
+  <h3>Mã phòng: <span id="roomCodeText"></span></h3>
+  <button onclick="callNumber()">Hô số</button>
+  <button onclick="resetGame()">Reset</button>
+</div>
+
+<div id="playerLogin" class="box">
+  <h3>Người chơi</h3>
+  <input id="playerNameInput" placeholder="Tên">
   <input id="roomCodeInput" placeholder="Mã phòng">
   <button onclick="joinRoom()">Vào phòng</button>
 </div>
 
-<div id="gameArea">
-  <h2>Phòng: <span id="roomCode"></span></h2>
-  <button onclick="drawNumber()">Quay số</button>
-  <p>Số vừa ra: <span id="lastNumber">-</span></p>
-  <div id="grid"></div>
+<div id="gameArea" class="box" style="display:none">
+  <h3 id="lastNumber"></h3>
+  <table id="board"></table>
+  <h2 id="status"></h2>
+
+  <h3>Danh sách người chơi</h3>
+  <div id="playerList"></div>
 </div>
-
-<!-- FIREBASE -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getDatabase, ref, set, push, onValue, update } 
-    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDsqMoyX9jSWhQ5l_a2a5XcDgrFVN-cvfQ",
-  authDomain: "lotoonline.firebaseapp.com",
-  databaseURL: "https://lotoonline-default-rtdb.firebaseio.com",
-  projectId: "lotoonline",
-  storageBucket: "lotoonline.firebasestorage.app",
-  messagingSenderId: "252484108877",
-  appId: "1:252484108877:web:a971f2ef0cbe8a38271204",
-  measurementId: "G-8YBCGY9PFV"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
-
-  let currentRoom = "";
-  let playerName = "";
-  let isHost = false;
-
-  window.loginHost = function() {
-    const email = hostEmail.value;
-    const pass = hostPassword.value;
-
-    signInWithEmailAndPassword(auth, email, pass)
-      .then(() => {
-        isHost = true;
-        currentRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
-        roomCode.textContent = currentRoom;
-
-        set(ref(db, "rooms/" + currentRoom), {
-          numbers: [],
-          last: null,
-          count: 0
-        });
-
-        showGame();
-      })
-      .catch(err => alert(err.message));
-  };
-
-  window.joinRoom = function() {
-    playerName = document.getElementById("playerName").value;
-    currentRoom = roomCodeInput.value.toUpperCase();
-
-    if (!playerName || !currentRoom) {
-      alert("Nhập đủ thông tin");
-      return;
-    }
-
-    roomCode.textContent = currentRoom;
-    showGame();
-  };
-
-  function showGame() {
-    hostLogin.style.display = "none";
-    playerJoin.style.display = "none";
-    gameArea.style.display = "block";
-  }
-
-  window.drawNumber = function() {
-    if (!isHost) return;
-
-    const roomRef = ref(db, "rooms/" + currentRoom);
-
-    onValue(roomRef, snap => {
-      const data = snap.val();
-      let nums = data.numbers || [];
-      let n;
-
-      do {
-        n = Math.floor(Math.random() * 90) + 1;
-      } while (nums.includes(n));
-
-      nums.push(n);
-
-      update(roomRef, {
-        numbers: nums,
-        last: n,
-        count: nums.length
-      });
-    }, { onlyOnce:true });
-  };
-
-  onValue(ref(db, "rooms"), snap => {
-    const data = snap.val();
-    if (!data || !data[currentRoom]) return;
-
-    lastNumber.textContent = data[currentRoom].last || "-";
-  });
-</script>
 
 </body>
 </html>
-
